@@ -26,10 +26,17 @@ class AutorizacaoPagamentoResource(Resource):
         if 'chaves_acesso' not in data or not isinstance(data['chaves_acesso'], list):
             return {'message': 'Missing or invalid "chaves_acesso" array in JSON data'}, 400
         
+        if 'modelo' not in data or not isinstance(data['modelo'], str):
+            return {'message': 'Missing or invalid "modelo" string in JSON data'}, 400
+        if data['modelo'] not in ['nfe', 'nfce']:
+            return {'message': 'Invalid "modelo" in JSON data'}, 400
+        
         xmls = []
         chaves_acesso = data['chaves_acesso']
+        modelo = data['modelo']
         
         for chave in chaves_acesso:
+            xml = consulta_sefaz.manifestar_nota(self.app, modelo, chave)
             xml = consulta_sefaz.consultar_distribuicao(self.app, chave)
             xmls.append(xml)
 
