@@ -17,43 +17,41 @@ uf = 'pe'
 CNPJ = '52241518000110'
 homologacao = False
 
-def consultar_distribuicao(app:Flask, chaves:list[str]):
+def consultar_distribuicao(app:Flask, chave:str):
     ns = {'ns': NAMESPACE_NFE}
     con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
-    xmls = []
 
-    for chave in chaves:
-        app.logger.info(f"Documento {chave}")
-        response = con.consulta_distribuicao(cnpj=CNPJ, chave=chave)
-        xml_etree = etree.fromstring(response.text.encode('utf-8'))
+    app.logger.info(f"Documento {chave}")
+    response = con.consulta_distribuicao(cnpj=CNPJ, chave=chave)
+    xml_etree = etree.fromstring(response.text.encode('utf-8'))
 
-        cStat = xml_etree.xpath('//ns:retDistDFeInt/ns:cStat', namespaces=ns)[0].text
-        xMotivo = xml_etree.xpath('//ns:retDistDFeInt/ns:xMotivo', namespaces=ns)[0].text
+    cStat = xml_etree.xpath('//ns:retDistDFeInt/ns:cStat', namespaces=ns)[0].text
+    xMotivo = xml_etree.xpath('//ns:retDistDFeInt/ns:xMotivo', namespaces=ns)[0].text
 
+    app.logger.info(f"cStat: {cStat}")
+    app.logger.info(f"xMotivo {xMotivo}")
 
-        app.logger.info(f"cStat: {cStat}")
-        app.logger.info(f"xMotivo {xMotivo}")
+    if cStat == '138':
+        docZip_schema = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip/@schema', namespaces=ns)[0]
+        app.logger.info(f"docZip_schema {docZip_schema}")
 
-        if cStat == '138':
-            docZip_schema = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip/@schema', namespaces=ns)[0]
-            app.logger.info(f"docZip_schema {docZip_schema}")
+        if (docZip_schema == 'procNFe_v4.00.xsd'): 
+            zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
+            resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
+            
+            xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
+            #xml = resposta_descompactado
 
-            if (docZip_schema == 'procNFe_v4.00.xsd'): 
-                zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
-                resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
-                
-                xmls.append(ElementTree.tostring(resposta_descompactado, encoding='unicode'))
-                #xmls.append(resposta_descompactado)   
-
-            elif (docZip_schema == 'resNFe_v1.01.xsd'):
-                zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
-                resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
-                
-                xmls.append(ElementTree.tostring(resposta_descompactado, encoding='unicode'))
-                #xmls.append(resposta_descompactado)
-        else:
-            pass
-    return xmls
+        elif (docZip_schema == 'resNFe_v1.01.xsd'):
+            zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
+            resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
+            
+            xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
+            #xml = resposta_descompactado
+    else:
+        pass
+    
+    return xml
 
 def consultar_nota(app:Flask, modelo:str, chave:str):
     con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
