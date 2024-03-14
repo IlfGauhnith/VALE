@@ -1,19 +1,25 @@
 from pynfe.processamento.comunicacao import ComunicacaoSefaz
 from pynfe.utils.descompactar import DescompactaGzip
+from pynfe.entidades.evento import EventoManifestacaoDest
+from pynfe.processamento.serializacao import SerializacaoXML
+from pynfe.processamento.assinatura import AssinaturaA1
+from pynfe.entidades.fonte_dados import _fonte_dados
 from pynfe.utils.flags import NAMESPACE_NFE
+import datetime
 from lxml import etree
+from xml.etree import ElementTree
 from flask import Flask
 import os
 
-certificado_path = os.path.join('burle.pfx')
+certificado = os.path.join('burle.pfx')
 senha = '123456'
 uf = 'pe'
 CNPJ = '52241518000110'
 homologacao = False
 
-def consultar_distribuicao_chave(app:Flask, chaves:list[str]):
-    con = ComunicacaoSefaz(uf, certificado_path, senha, homologacao)
+def consultar_distribuicao(app:Flask, chaves:list[str]):
     ns = {'ns': NAMESPACE_NFE}
+    con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
     xmls = []
 
     for chave in chaves:
@@ -35,17 +41,45 @@ def consultar_distribuicao_chave(app:Flask, chaves:list[str]):
             if (docZip_schema == 'procNFe_v4.00.xsd'): 
                 zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
                 resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
-                xmls.append(resposta_descompactado)   
+                
+                xmls.append(ElementTree.tostring(resposta_descompactado, encoding='unicode'))
+                #xmls.append(resposta_descompactado)   
 
             elif (docZip_schema == 'resNFe_v1.01.xsd'):
                 zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
                 resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
-                xmls.append(resposta_descompactado)
-
+                
+                xmls.append(ElementTree.tostring(resposta_descompactado, encoding='unicode'))
+                #xmls.append(resposta_descompactado)
         else:
             pass
-
-
     return xmls
 
+def consultar_nota(app:Flask, modelo:str, chave:str):
+    con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
+    response = con.consulta_nota(modelo, chave)
+    xml_etree = etree.fromstring(response.text.encode('utf-8'))
+    
+    return ElementTree.tostring(xml_etree, encoding='unicode')
 
+def manifestar_nota(app:Flask, modelo:str, chave_acesso:str, operacao:int):
+    con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
+    
+    manif_dest = EventoManifestacaoDest(
+	    cnpj=CNPJ,
+	    chave=chave_acesso,
+	    data_emissao=datetime.datetime.now(),
+	    uf='AN', # AMBIENTE NACIONAL
+	    operacao=operacao
+    )
+    
+    serializador = SerializacaoXML(_fonte_dados, homologacao=homologacao)
+    nfe_manif = serializador.serializar_evento(manif_dest)
+    
+    a1 = AssinaturaA1(certificado, senha)
+    xml = a1.assinar(nfe_manif)
+    
+    response = con.evento(modelo=modelo, evento=xml)
+    xml_etree = etree.fromstring(response.text.encode('utf-8'))
+    
+    return ElementTree.tostring(xml_etree, encoding='unicode')

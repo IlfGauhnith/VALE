@@ -1,6 +1,6 @@
 from flask import request, Flask
 from flask_restful import Resource
-from script.consulta_sefaz import consultar_distribuicao_chave
+import script.consulta_sefaz as consulta_sefaz
 from business.autorizacao_pagamento import AutorizacaoPagamentoBusiness
 
 class AutorizacaoPagamentoResource(Resource):
@@ -13,14 +13,22 @@ class AutorizacaoPagamentoResource(Resource):
         if not request.is_json:
             return {'message': 'Invalid JSON format'}, 400
         
+        action = request.args.get('action')
         data = request.json
         
-        if 'chavesDeAcesso' not in data or not isinstance(data['chavesDeAcesso'], list):
-            return {'message': 'Missing or invalid "chavesDeAcesso" array in JSON data'}, 400
+        if action == 'gerar_autorizacao':
+            return self.gerar_autorizacao(data)
         
-        chaves_de_acesso = data['chavesDeAcesso']
-        xmls = consultar_distribuicao_chave(self.app, chaves_de_acesso)
-        for xml in xmls:
-            self.autorizacao_bo.xml_to_item_autorizacao(xml)
+        else:
+            return {'message': 'Invalid action'}, 400
+                    
+    def gerar_autorizacao(self, data:dict):
+        if 'chaves_acesso' not in data or not isinstance(data['chaves_acesso'], list):
+            return {'message': 'Missing or invalid "chaves_acesso" array in JSON data'}, 400
+        
+        chaves_acesso = data['chaves_acesso']
+        xmls = consulta_sefaz.consultar_distribuicao(self.app, chaves_acesso)
+        #for xml in xmls:
+        #   self.autorizacao_bo.xml_to_item_autorizacao(xml)
         
         return {'nfe': xmls}, 200
