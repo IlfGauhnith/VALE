@@ -9,6 +9,7 @@ import datetime
 from lxml import etree
 from xml.etree import ElementTree
 from flask import Flask
+from decorator import log_function_name
 import os
 
 certificado = os.path.join('burle.pfx')
@@ -17,6 +18,7 @@ uf = 'pe'
 CNPJ = '52241518000110'
 homologacao = False
 
+@log_function_name
 def consultar_distribuicao(app:Flask, chave:str):
     ns = {'ns': NAMESPACE_NFE}
     con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
@@ -39,27 +41,29 @@ def consultar_distribuicao(app:Flask, chave:str):
             zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
             resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
             
-            xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
-            #xml = resposta_descompactado
+            #xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
+            xml = resposta_descompactado
 
         elif (docZip_schema == 'resNFe_v1.01.xsd'):
             zip_resposta = xml_etree.xpath('//ns:retDistDFeInt/ns:loteDistDFeInt/ns:docZip', namespaces=ns)[0].text
             resposta_descompactado = DescompactaGzip.descompacta(zip_resposta)
             
-            xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
-            #xml = resposta_descompactado
+            #xml = ElementTree.tostring(resposta_descompactado, encoding='unicode')
+            xml = resposta_descompactado
     else:
         pass
     
     return xml
 
-def consultar_nota(app:Flask, modelo:str, chave:str):
+@log_function_name
+def consultar_status_nota(app:Flask, modelo:str, chave:str):
     con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
     response = con.consulta_nota(modelo, chave)
     xml_etree = etree.fromstring(response.text.encode('utf-8'))
     
-    return ElementTree.tostring(xml_etree, encoding='unicode')
+    return xml_etree
 
+@log_function_name
 def manifestar_nota(app:Flask, modelo:str, chave_acesso:str, operacao:int):
     con = ComunicacaoSefaz(uf, certificado, senha, homologacao)
     
@@ -80,4 +84,4 @@ def manifestar_nota(app:Flask, modelo:str, chave_acesso:str, operacao:int):
     response = con.evento(modelo=modelo, evento=xml)
     xml_etree = etree.fromstring(response.text.encode('utf-8'))
     
-    return ElementTree.tostring(xml_etree, encoding='unicode')
+    return xml_etree

@@ -1,5 +1,6 @@
 from flask import request, Flask
 from flask_restful import Resource
+from xml.etree import ElementTree
 import script.consulta_sefaz as consulta_sefaz
 
 class NotaResource(Resource):
@@ -12,13 +13,16 @@ class NotaResource(Resource):
             return {'message': 'Invalid JSON format'}, 400
         
         action = request.args.get('action')
-        data = request.json
+        body = request.json
         
         if action == 'consultar_status_nota':
-            return self.consultar_status_nota(data)
+            return self.consultar_status_nota(body)
 
         elif action == 'manifestar_nota':
-            return self.manifestar_nota(data)
+            return self.manifestar_nota(body)
+        
+        elif action == 'consultar_distribuicao':
+            return self.consultar_distribuicao(body)
         
         else:
             return {'message': 'Invalid action'}, 400
@@ -35,9 +39,11 @@ class NotaResource(Resource):
         
         chave_acesso = data['chave_acesso']
         modelo = data['modelo']
-        xml = consulta_sefaz.consultar_nota(self.app, modelo, chave_acesso)
-
-        return {'nfe': xml}, 200
+        
+        xml = consulta_sefaz.consultar_status_nota(self.app, modelo, chave_acesso)
+        xml = ElementTree.tostring(xml, encoding='unicode')
+        
+        return {'xml': xml}, 200
 
     def manifestar_nota(self, data:dict):
         """
@@ -74,4 +80,17 @@ class NotaResource(Resource):
         modelo = data['modelo']
         
         xml = consulta_sefaz.manifestar_nota(self.app, modelo, chave_acesso, operacao)
-        return {'nfe': xml}, 200
+        xml = ElementTree.tostring(xml, encoding='unicode')
+        return {'xml': xml}, 200
+
+    def consultar_distribuicao(self, data:dict):
+        if 'chave_acesso' not in data or not isinstance(data['chave_acesso'], str):
+            return {'message': 'Missing or invalid "chaves_acesso" array in JSON data'}, 400
+        
+        chave_acesso = data['chave_acesso']
+        
+        xml = consulta_sefaz.consultar_distribuicao(self.app, chave_acesso)
+        xml = ElementTree.tostring(xml, encoding='unicode')
+        return {'xml': xml}, 200
+
+        
