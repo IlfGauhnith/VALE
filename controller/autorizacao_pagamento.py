@@ -2,12 +2,15 @@ from flask import request, Flask
 from flask_restful import Resource
 import script.consulta_sefaz as consulta_sefaz
 from business.autorizacao_pagamento import AutorizacaoPagamentoBusiness
+from business.nota import NotaFiscalBusiness
+from model.nota import NotaFiscal
 
 class AutorizacaoPagamentoResource(Resource):
     def __init__(self, app: Flask, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = app
         self.autorizacao_bo = AutorizacaoPagamentoBusiness(app)
+        self.nota_bo = NotaFiscalBusiness(app)
 
     def post(self):
         if not request.is_json:
@@ -31,13 +34,12 @@ class AutorizacaoPagamentoResource(Resource):
         if data['modelo'] not in ['nfe', 'nfce']:
             return {'message': 'Invalid "modelo" in JSON data'}, 400
         
-        xmls = []
         chaves_acesso = data['chaves_acesso']
         modelo = data['modelo']
         
         for chave in chaves_acesso:
-            xml = consulta_sefaz.manifestar_nota(self.app, modelo, chave)
+            _ = consulta_sefaz.manifestar_nota(self.app, modelo, chave, 1)
             xml = consulta_sefaz.consultar_distribuicao(self.app, chave)
-            xmls.append(xml)
+            nota_fiscal:NotaFiscal = self.nota_bo.xml_to_nota_fiscal(xml)
 
-        return {'nfe': xmls}, 200
+        return {'nfe': str(nota_fiscal)}, 200

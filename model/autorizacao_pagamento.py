@@ -1,7 +1,7 @@
+from model.nota import NotaFiscal
+
 class ItemAutorizacaoPagamento:
-    def __init__(self, nome, fornecedor, valor, numero, data_emissao):
+
+    def __init__(self, nota_fiscal:NotaFiscal, nome:str):
+        self.nota_fiscal = nota_fiscal
         self.nome = nome
-        self.fornecedor = fornecedor
-        self.valor = valor
-        self.numero = numero
-        self.data_emissao = data_emissao
