@@ -4,6 +4,7 @@ import script.consulta_sefaz as consulta_sefaz
 from business.autorizacao_pagamento import AutorizacaoPagamentoBusiness
 from business.nota import NotaFiscalBusiness
 from model.nota import NotaFiscal
+from model.autorizacao_pagamento import ItemAutorizacaoPagamento
 
 class AutorizacaoPagamentoResource(Resource):
     def __init__(self, app: Flask, *args, **kwargs):
@@ -40,6 +41,10 @@ class AutorizacaoPagamentoResource(Resource):
         for chave in chaves_acesso:
             _ = consulta_sefaz.manifestar_nota(self.app, modelo, chave, 1)
             xml = consulta_sefaz.consultar_distribuicao(self.app, chave)
+            
             nota_fiscal:NotaFiscal = self.nota_bo.xml_to_nota_fiscal(xml)
-
-        return {'nfe': str(nota_fiscal)}, 200
+            item_autorizacao = ItemAutorizacaoPagamento(nota_fiscal, "DESPESA1")
+            
+            file_path = self.autorizacao_bo.do_excel_autorizacao_pagamento(item_autorizacao)
+            
+        return {'directories': [file_path]}

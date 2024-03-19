@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Authorization</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #input-container {
+            text-align: center;
+        }
+        #authorization-input {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #generate-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="input-container">
+        <input type="text" id="authorization-input" placeholder="Enter authorization key">
+        <br>
+        <button id="generate-button">Generate Authorization</button>
+    </div>
+
+    <script>
+        document.getElementById('generate-button').addEventListener('click', function() {
+            var input = document.getElementById('authorization-input').value;
+            var requestData = {
+                chaves_acesso: [input],
+                modelo: "nfe"
+            };
+
+            fetch('http://localhost:5004/autorizacao-pagamento?action=gerar_autorizacao', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'Application/octet-stream'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'authorization.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error('There was an error with the fetch operation:', error);
+            });
+        });
+    </script>
+</body>
+</html>
